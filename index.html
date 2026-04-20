@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Orbital Moves</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            color: white;
+        }
+
+        .game-container {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+            backdrop-filter: blur(10px);
+        }
+
+        h1 {
+            text-align: center;
+            margin: 0 0 20px 0;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .game-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+
+        #game-board {
+            display: grid;
+            grid-template-columns: repeat(8, 60px);
+            grid-template-rows: repeat(8, 60px);
+            gap: 4px;
+            background: rgba(0,0,0,0.3);
+            padding: 10px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+        }
+
+        .orb {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 3px solid rgba(255,255,255,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+        }
+
+        .orb:hover {
+            transform: scale(1.1);
+            filter: brightness(1.2);
+        }
+
+        .orb.selected {
+            transform: scale(1.2);
+            box-shadow: 0 0 20px rgba(255,255,255,0.8);
+            border-width: 4px;
+        }
+
+        .orb.match3 {
+            animation: match3 0.5s ease-out;
+        }
+
+        .orb.falling {
+            animation: fall 0.3s ease-out;
+        }
+
+        @keyframes match3 {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.3); opacity: 0.7; }
+            100% { transform: scale(0); opacity: 0; }
+        }
+
+        @keyframes fall {
+            0% { transform: translateY(-100px); opacity: 0; }
+            100% { transform: translateY(0); opacity: 1; }
+        }
+
+        .colors {
+            background: #333;
+            border-radius: 10px;
+            padding: 10px;
+            margin-bottom: 20px;
+        }
+
+        .color-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: none;
+            margin: 5px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .color-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .controls {
+            text-align: center;
+        }
+
+        button {
+            background: linear-gradient(45deg, #ff6b6b, #feca57);
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 5px;
+            transition: all 0.3s;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .message {
+            font-size: 1.5em;
+            margin: 10px 0;
+            min-height: 30px;
+        }
+
+        @media (max-width: 600px) {
+            #game-board {
+                grid-template-columns: repeat(8, 45px);
+                grid-template-rows: repeat(8, 45px);
+            }
+            .orb {
+                width: 45px;
+                height: 45px;
+                font-size: 18px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>🌌 Orbital Moves</h1>
+        
+        <div class="game-info">
+            <div>Score: <span id="score">0</span></div>
+            <div>Moves: <span id="moves">25</span></div>
+            <div>Best: <span id="best">0</span></div>
+        </div>
+
+        <div class="message" id="message"></div>
+
+        <div id="game-board"></div>
+
+        <div class="colors">
+            <button class="color-btn" style="background: #ff6b6b;" data-color="🔴"></button>
+            <button class="color-btn" style="background: #4ecdc4;" data-color="🔵"></button>
+            <button class="color-btn" style="background: #45b7d1;" data-color="🟢"></button>
+            <button class="color-btn" style="background: #feca57;" data-color="🟡"></button>
+            <button class="color-btn" style="background: #ff9ff3;" data-color="🟣"></button>
+            <button class="color-btn" style="background: #54a0ff;" data-color="🔷"></button>
+        </div>
+
+        <div class="controls">
+            <button id="new-game">New Game</button>
+        </div>
+    </div>
+
+    <script>
+        class OrbitalMoves {
+            constructor() {
+                this.board = [];
+                this.size = 8;
+                this.colors = ['🔴', '🔵', '🟢', '🟡', '🟣', '🔷'];
+                this.score = 0;
+                this.moves = 25;
+                this.selected = null;
+                this.isProcessing = false;
+                this.bestScore = localStorage.getItem('orbitalBest') || 0;
+                
+                this.init();
+            }
+
+            init() {
+                this.board = this.generateBoard();
+                this.updateDisplay();
+                this.updateUI();
+                this.attachEvents();
+                this.processMatches();
+            }
+
+            generateBoard() {
+                const board = [];
+                for (let i = 0; i < this.size; i++) {
+                    board[i] = [];
+                    for (let j = 0; j < this.size; j++) {
+                        board[i][j] = this.getRandomColor();
+                    }
+                }
+                return board;
+            }
+
+            getRandomColor() {
+                return this.colors[Math.floor(Math.random() * this.colors.length)];
+            }
+
+            updateDisplay() {
+                const boardElement = document.getElementById('game-board');
+                boardElement.innerHTML = '';
+
+                for (let i = 0; i < this.size; i++) {
+                    for (let j = 0; j < this.size; j++) {
+                        const orb = document.createElement('div');
+                        orb.className = 'orb';
+                        orb.textContent = this.board[i][j];
+                        orb.dataset.row = i;
+                        orb.dataset.col = j;
+                        
+                        if (this.selected && this.selected.row === i && this.selected.col === j) {
+                            orb.classList.add('selected');
+                        }
+
+                        boardElement.appendChild(orb);
+                    }
+                }
+            }
+
+            attachEvents() {
+                document.getElementById('game-board').addEventListener('click', (e) => {
+                    if (this.isProcessing || this.moves <= 0) return;
+                    
+                    const orb = e.target.closest('.orb');
+                    if (!orb) return;
+
+                    const row = parseInt(orb.dataset.row);
+                    const col = parseInt(orb.dataset.col);
+
+                    this.handleOrbClick(row, col);
+                });
+
+                document.querySelectorAll('.color-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        if (this.isProcessing || this.moves <= 0) return;
+                        const color = e.target.dataset.color;
+                        this.paintSelected(color);
+                    });
+                });
+
+                document.getElementById('new-game').addEventListener('click', () => {
+                    this.newGame();
+                });
+            }
+
+            handleOrbClick(row, col) {
+                if (this.selected) {
+                    const distance = Math.abs(this.selected.row - row) + Math.abs(this.selected.col - col);
+                    if (distance === 1 || (this.selected.row === row && Math.abs(this.selected.col - col) === 1)) {
+                        // Adjacent - swap
+                        this.swapOrbs(this.selected.row, this.selected.col, row, col);
+                    } else {
+                        // Just select new one
+                        this.selected = { row, col };
+                    }
+                } else {
+                    this.selected = { row, col };
+                }
+                this.updateDisplay();
+            }
+
+            swapOrbs(r1, c1, r2, c2) {
+                if (this.isProcessing) return;
+                
+                this.isProcessing = true;
+                this.moves--;
+                
+                [this.board[r1][c1], this.board[r2][c2]] = [this.board[r2][c2], this.board[r1][c1]];
+                this.selected = null;
+                
+                setTimeout(() => {
+                    this.updateDisplay();
+                    this.processMatches();
+                }, 200);
+            }
+
+            paintSelected(color) {
+                if (!this.selected || this.isProcessing) return;
+                
+                this.isProcessing = true;
+                this.moves--;
+                this.board[this.selected.row][this.selected.col] = color;
+                this.selected = null;
+                
+                setTimeout(() => {
+                    this.updateDisplay();
+                    this.processMatches();
+                }, 200);
+            }
+
+            processMatches() {
+                const matches = this.findMatches();
+                
+                if (matches.length === 0) {
+                    this.isProcessing = false;
+                    this.checkGameOver();
+                    return;
+                }
+
+                this.removeMatches(matches);
+            }
+
+            findMatches() {
+                const matches = [];
+                
+                // Check rows
+                for (let i = 0; i < this.size; i++) {
+                    let count = 1;
+                    let color = this.board[i][0];
+                    let startCol = 0;
+                    
+                    for (let j = 1; j < this.size; j++) {
+                        if (this.board[i][j] === color) {
+                            count++;
+                        } else {
+                            if (count >= 3) {
+                                for (let k = 0; k < count; k++) {
+                                    matches.push({ row: i, col: startCol + k });
+                                }
+                            }
+                            color = this.board[i][j];
+                            count = 1;
+                            startCol = j;
+                        }
+                    }
+                    if (count >= 3) {
+                        for (let k = 0; k < count; k++) {
+                            matches.push({ row: i, col: startCol + k });
+                        }
+                    }
+                }
+
+                // Check columns
+                for (let j = 0; j < this.size; j++) {
+                    let count = 1;
+                    let color = this.board[0][j];
+                    let startRow = 0;
+                    
+                    for (let i = 1; i < this.size; i++) {
+                        if (this.board[i][j] === color) {
+                            count++;
+                        } else {
+                            if (count >= 3) {
+                                for (let k = 0; k < count; k++) {
+                                    matches.push({ row: startRow + k, col: j });
+                                }
+                            }
+                            color = this.board[i][j];
+                            count = 1;
+                            startRow = i;
+                        }
+                    }
+                    if (count >= 3) {
+                        for (let k = 0; k < count; k++) {
+                            matches.push({ row: startRow + k, col: j });
+                        }
+                    }
+                }
+
+                return matches;
+            }
+
+            removeMatches(matches) {
+                const scoreGain = matches.length * 10;
+                this.score += scoreGain;
+                
+                // Animate removal
+                document.querySelectorAll('.orb').forEach(orb => {
+                    const row = parseInt(orb.dataset.row);
+                    const col = parseInt(orb.dataset.col);
+                    if (matches.some(m => m.row === row && m.col === col)) {
+                        orb.classList.add('match3');
+                    }
+                });
+
+                setTimeout(() => {
+                    matches.forEach(match => {
+                        this.board[match.row][match.col] = null;
+                    });
+                    this.dropOrbs();
+                }, 500);
+            }
+
+            dropOrbs() {
+                for (let j = 0; j < this.size; j++) {
+                    let writePos = this.size - 1;
+                    for (let i = this.size - 1; i >= 0; i--) {
+                        if (this.board[i][j] !== null) {
+                            if (i !== writePos) {
+                                this.board[writePos][j] = this.board[i][j];
+                                this.board[i][j] = null;
+                            }
+                            writePos--;
+                        }
+                    }
+                    for (let i = writePos; i >= 0; i--) {
+                        this.board[i][j] = this.getRandomColor();
+                    }
+                }
+
+                setTimeout(() => {
+                    this.updateDisplay();
+                    setTimeout(() => this.processMatches(), 300);
+                }, 200);
+            }
+
+            checkGameOver() {
+                if (this.moves <= 0) {
+                    this.gameOver();
+                } else {
+                    this.updateMessage(`Score: +${this.score}`);
+                }
+            }
+
+            gameOver() {
+                this.isProcessing = true;
+                if (this.score > this.bestScore) {
+                    this.bestScore = this.score;
+                    localStorage.setItem('orbitalBest', this.bestScore);
+                }
+                
+                setTimeout(() => {
+                    alert(`Game Over!\nFinal Score: ${this.score}\nBest Score: ${this.bestScore}`);
+                    this.newGame();
+                }, 500);
+            }
+
+            newGame() {
+                this.score = 0;
+                this.moves = 25;
+                this.selected = null;
+                this.isProcessing = false;
+                this.init();
+            }
+
+            updateUI() {
+                document.getElementById('score').textContent = this.score;
+                document.getElementById('moves').textContent = this.moves;
+                document.getElementById('best').textContent = this.bestScore;
+            }
+
+            updateMessage(msg) {
+                const messageEl = document.getElementById('message');
+                messageEl.textContent = msg;
+                setTimeout(() => {
+                    messageEl.textContent = '';
+                }, 2000);
+            }
+        }
+
+        // Start the game
+        let game;
+        window.addEventListener('load', () => {
+            game = new OrbitalMoves();
+        });
+    </script>
+</body>
+</html>
